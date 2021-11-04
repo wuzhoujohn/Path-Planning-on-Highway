@@ -171,7 +171,7 @@ vector < double > getXY(double s, double d, vector < double > maps_s, vector < d
   int prev_wp = -1;
 
   while (s > maps_s[prev_wp + 1] && (prev_wp < (int)(maps_s.size() - 1))) {
-    prev_wp++;
+    ++prev_wp;
   }
 
   int wp2 = (prev_wp + 1) % maps_x.size();
@@ -234,7 +234,7 @@ double cost_change_left(double dist_closest_leftfront, double dist_closest_leftb
   {
     cost = cost_collision;
   } else {
-    if ((dist_closest_leftfront >= 2.5 * buffer_lc) and(dist_closest_leftback >= 0.6 * buffer_lc)) // No car is close by on either front or back
+    if ((dist_closest_leftfront >= 2.5 * buffer_lc) and(dist_closest_leftback >= 0.8 * buffer_lc)) // No car is close by on either front or back
     {
       if (dist_closest_leftfront >= 200) {
         cost = cost_left_turn * 0.90; // Slight preference if left lane is wide open
@@ -260,7 +260,7 @@ double cost_change_right(double dist_closest_rightfront, double dist_closest_rig
   {
     cost = cost_collision;
   } else {
-    if ((dist_closest_rightfront >= 2.5 * buffer_lc) and(dist_closest_rightback >= 0.6 * buffer_lc)) // No car is close by on either front or back
+    if ((dist_closest_rightfront >= 2.5 * buffer_lc) and(dist_closest_rightback >= 0.8 * buffer_lc)) // No car is close by on either front or back
     {
       if (dist_closest_rightfront >= 200) {
         cost = cost_right_turn * 0.90; // Slight preference if right lane is wide open
@@ -538,16 +538,11 @@ int main() {
             violate_right = 1;
           }
 
-          cout << "Dist closest left_front:" << dist_closest_leftfront << endl;
-          cout << "Dist closest left_back:" << dist_closest_leftback << endl;
-
-          cout << "Dist closest right_front:" << dist_closest_rightfront << endl;
-          cout << "Dist closest right_back:" << dist_closest_rightback << endl;
-
           //STEP 2: Calculate cost of actions and choose the one with minimum cost
 
           double buffer_my = 50;
           double buffer_lc = 20;
+          double buffer_collision = 15;
           double cost_collision = 500;
           double cost_left_turn = 150;
           double cost_right_turn = 150;
@@ -574,10 +569,10 @@ int main() {
           right_turn_tc = cost_change_right(dist_closest_rightfront, dist_closest_rightback, buffer_lc, cost_collision, cost_right_turn, violate_right);
           costs.push_back(right_turn_tc);
 
-          //cout<<"Cost continue lane" <<continue_lane_tc<<endl;
-          //cout<<"Cost slow down" <<break_tc<<endl;
-          //cout<<"Cost left turn" <<left_turn_tc<<endl;
-          //cout<<"Cost Right turn" <<right_turn_tc<<endl;
+          cout<<"Cost continue lane" <<continue_lane_tc<<endl;
+          cout<<"Cost slow down" <<break_tc<<endl;
+          cout<<"Cost left turn" <<left_turn_tc<<endl;
+          cout<<"Cost Right turn" <<right_turn_tc<<endl;
 
           // Find the action with minimum cost
 
@@ -605,203 +600,214 @@ int main() {
           }
 
           // decision = 0 ; stay in current lane at max speed
-          //decision = 1; stay in current lane but slow down
-          // decision = 2; change to left lane
-          // decision = 3 ; change to right lane
+					// decision = 1; stay in current lane but slow down
+					// decision = 2; change to left lane
+					// decision = 3 ; change to right lane
 
-          //cout<<"Min cost: "<< min_cost<<endl;
-          //cout <<"Decision is:" <<decision<<endl;
-          cout << "Velocity of closest front: " << closest_front_vel << endl;
+					cout << "Min cost: " << min_cost << endl;
+					cout << "Decision is:" << decision << endl;
+					//cout << "Velocity of closest front: " << closest_front_vel << endl;
 
-          // STEP 3: Once the car has chosen a decision, decide the best s_inc and target_d for that action
+					// STEP 3: Once the car has chosen a decision, decide the best s_inc and target_d for that action
 
-          // Mapping of s and velocity
-          // s = 0.40 ; vel = 45;
-          // s = 0.35; vel = 40;
-          // s = 0.30; vel = 35
+					// Mapping of s and velocity
+					// 1 mile/h = 0.447 m/s
+					// s = 0.40 ; vel = 45 mile/h = 20.1168 m/s; s = 20.1168 * 0.02s = 0.40 meter
+					// s = 0.35; vel = 40;
+					// s = 0.30; vel = 35
+					const double MAX_SPEED = 50; //mph
 
-          //Note closest front vel is likely in m/s -- first convert to miles/jr
+					//The jerk threshold for comfort was approximately 0.3�C0.9 m/s3
+					const double MAX_JERK = 0.9; // maximum jerk considering passenger comfort
 
-          if ((decision == 0) or(decision == 999)) {
-            //Stay in current lane at max speed
-            //target_s_inc = 0.415;
+					//Note closest front vel is likely in m/s -- first convert to miles/hr
+					if ((decision == 0) or (decision == 999)) {
 
-            if (mylane(car_d) == 1) {
-              target_d = 2.0;
-            } else if (mylane(car_d) == 2) {
-              target_d = 6.0;
-            } else if (mylane(car_d) == 3) {
-              target_d = 10.0;
-            } else target_d = 6.0; //Car out of bound
+						//Stay in current lane at max speed
+						//car_speed = 50 / 2.24; //convert mile/h to m/s
+						car_speed += MAX_JERK;
+						//target_s_inc = car_speed * 0.02; //calculated based on 50 mile/h for duration of 0.02s
+						//determine which lane car should be on
+						if (mylane(car_d) == 1) {
+							target_d = 2.0;
+						}
+						else if (mylane(car_d) == 2) {
+							target_d = 6.0;
+						}
+						else if (mylane(car_d) == 3) {
+							target_d = 10.0;
+						}
+						else target_d = 6.0; //if Car is out of bound, move car to middle lane
 
-          } else if (decision == 1) {
-            //Stay in current lane but slow down 
-            if (ms_to_mph(closest_front_vel) > 45) {
-              //target_s_inc = 0.40;
-            } else if (ms_to_mph(closest_front_vel) > 40) {
-              //target_s_inc = 0.35;
-            } else if (ms_to_mph(closest_front_vel) > 35) {
-              //target_s_inc = 0.30;
-            } else if (ms_to_mph(closest_front_vel) > 30) {
-              //target_s_inc = 0.25;
-            }
+					} else if (decision == 1) {
+						//Stay in current lane but slow down
+						car_speed = car_speed - MAX_JERK;
+						cout << "dist_closest_front: " << dist_closest_front << endl;
+						cout << "closest_front_vel: " << closest_front_vel << endl;
 
-            //else target_s_inc = 0.22;
+						if ((dist_closest_front < buffer_collision) && (car_speed > closest_front_vel)) {
+							car_speed = closest_front_vel;
+						}
+						cout << "car_speed is:" << car_speed << endl;
 
-            if (mylane(car_d) == 1) {
-              target_d = 2.0;
-            } else if (mylane(car_d) == 2) {
-              target_d = 6.0;
-            } else if (mylane(car_d) == 3) {
-              target_d = 10.0;
-            } else target_d = 6.0; //Car out of bound
+						if (mylane(car_d) == 1) {
+							target_d = 2.0;
+						}
+						else if (mylane(car_d) == 2) {
+							target_d = 6.0;
+						}
+						else if (mylane(car_d) == 3) {
+							target_d = 10.0;
+						}
+						else target_d = 6.0; //Car out of bound
 
-          } else if (decision == 2) {
-            //Change to left lane
+					} else if (decision == 2) {
+						//Change to left lane
 
-            //target_s_inc = 0.415;
+						if (mylane(car_d) <= 2) // You can't switch -- another way to maintain sanity
+						{
+							target_d = 2.0;
+						}
+						else if (mylane(car_d) == 3) {
+							target_d = 6.0;
+						}
+						else target_d = 6.0; //Car out of bound
 
-            if (mylane(car_d) <= 2) // You can't switch -- another way to maintain sanity
-            {
-              target_d = 2.0;
-            } else if (mylane(car_d) == 3) {
-              target_d = 6.0;
-            } else target_d = 6.0; //Car out of bound
+					} else if (decision == 3) {
+						//Change to right lane
 
-          } else if (decision == 3) {
-            //Change to right lane
-            //target_s_inc = 0.415;
+						if (mylane(car_d) == 1) {
+							target_d = 6.0;
+						}
+						else if (mylane(car_d) >= 2) //You can't switch -- another way to maintain sanity
+						{
+							target_d = 10.0;
+						}
+						else target_d = 6.0; //Car out of bound
 
-            if (mylane(car_d) == 1) {
-              target_d = 6.0;
-            } else if (mylane(car_d) >= 2) //You can't switch -- another way to maintain sanity
-            {
-              target_d = 10.0;
-            } else target_d = 6.0; //Car out of bound
-
-          } else {
-            cout << "Something is wrong";
-          }
+					} else {
+						cout << "Something is wrong";
+					}
 
           //STEP 4: Generate Jerk minimizing trajectories for lane change and acceleration/braking
+					vector < double > next_x_vals;
+					vector < double > next_y_vals;
 
-          vector < double > next_x_vals;
-          vector < double > next_y_vals;
 
-          double pos_x;
-          double pos_y;
-          double pos_s;
-          double angle;
-          double speed;
-          double prev_s;
-          double pos_d;
-          double prev_d;
-          double prev_s_inc;
-          double target_s;
-          double prev_target_d;
+					vector<double> pre_and_future_x;
+					vector<double> pre_and_future_y;
 
-          double WP_x, WP_y, WP_dx, WP_dy;
+					double pos_x = car_x;
+					double pos_y = car_y;
+					double pos_s = car_s;
+					double pos_d = car_d;
+					double yaw_in_rad = deg2rad(car_yaw);
+					//check if car speed is greater than limit, convert 50 mile/h to m/s to align with simulator
+					
+					if (car_speed > MAX_SPEED / 2.24) {
+						car_speed = MAX_SPEED / 2.24;
+					}
+					cout << "car_speed " << car_speed << endl;
 
-          //As suggested in the lecture use previous path
+					//As suggested in the lecture use previous path
+					if (path_size < 2) {
+						double prev_pos_x = pos_x - cos(car_yaw);
+						double prev_pos_y = pos_y - sin(car_yaw);
 
-          int path_size = previous_path_x.size();
+						pre_and_future_x.push_back(prev_pos_x);
+						pre_and_future_x.push_back(pos_x);
 
-          for (int i = 0; i < path_size; i++) {
-            next_x_vals.push_back(previous_path_x[i]);
-            next_y_vals.push_back(previous_path_y[i]);
-          }
+						pre_and_future_y.push_back(prev_pos_y);
+						pre_and_future_y.push_back(pos_y);
+					}
+					else {
+						pos_x = previous_path_x[path_size - 1];
+						pos_y = previous_path_y[path_size - 1];
 
-          if (path_size == 0) {
-            pos_x = car_x;
-            pos_y = car_y;
-            pos_s = car_s;
-            speed = 0;
-            prev_s = car_s;
-            pos_d = car_d;
-            prev_d = car_d;
-            prev_s_inc = 0.42;
-            target_s = 0.42;
-            prev_target_d = 6.0;
+						double pos_x2 = previous_path_x[path_size - 2];
+						double pos_y2 = previous_path_y[path_size - 2];
+						//angle = atan2(pos_y - pos_y2, pos_x - pos_x2);
+						yaw_in_rad = atan2(pos_y - pos_y2, pos_x - pos_x2);
 
-          } else {
-            pos_x = previous_path_x[path_size - 1];
-            pos_y = previous_path_y[path_size - 1];
+						pre_and_future_x.push_back(pos_x2);
+						pre_and_future_x.push_back(pos_x);
+						
+						pre_and_future_y.push_back(pos_y2);
+						pre_and_future_y.push_back(pos_y);
+						
 
-            double pos_x2 = previous_path_x[path_size - 2];
-            double pos_y2 = previous_path_y[path_size - 2];
-            angle = atan2(pos_y - pos_y2, pos_x - pos_x2);
+					}
 
-            double delta_x = pos_x2 - pos_x;
-            double delta_y = pos_y2 - pos_y;
-            speed = sqrt(delta_x * delta_x + delta_y * delta_y);
 
-          }
+					// Setting up three target points in the future.
+					vector<double> next_wp0 = getXY(car_s + 30, target_d, map_waypoints_s, map_waypoints_x,
+						map_waypoints_y);
+					vector<double> next_wp1 = getXY(car_s + 60, target_d, map_waypoints_s, map_waypoints_x,
+						map_waypoints_y);
+					vector<double> next_wp2 = getXY(car_s + 90, target_d, map_waypoints_s, map_waypoints_x,
+						map_waypoints_y);
 
-          // smooth change in lane
-          double d_smoothing_steps = 80;
-          //double delta_d = (target_d - end_path_d) / d_smoothing_steps;
 
-          //Best Jerk minimal trajectories generated by difference b/w target_d and previous d
-          double delta_d = (target_d - prev_d) / d_smoothing_steps;
+					pre_and_future_x.push_back(next_wp0[0]);
+					pre_and_future_x.push_back(next_wp1[0]);
+					pre_and_future_x.push_back(next_wp2[0]);
 
-          //smooth acceleration and braking
-          double s_smoothing_steps = 80;
-          //double delta_s = (target_s_inc - prev_s_inc)/s_smoothing_steps;
+					pre_and_future_y.push_back(next_wp0[1]);
+					pre_and_future_y.push_back(next_wp1[1]);
+					pre_and_future_y.push_back(next_wp2[1]);
 
-          cout << "\t Previous s inc: " << prev_s_inc;
-          cout << "\t Target s: " << target_s << endl;
 
-          cout << "Target d: " << target_d;
-          cout << "\t End path d: " << end_path_d;
-          cout << "\t Previous d: " << prev_d;
-          cout << "\t Car d: " << car_d << endl;
-          //cout<<"\t Delta d"<<delta_d<<endl;
+					// Making coordinates to local car coordinates.
+					for (int i = 0; i < pre_and_future_x.size(); i++) {
+						double shift_x = pre_and_future_x[i] - pos_x; //difference between previous/future x and current x
+						double shift_y = pre_and_future_y[i] - pos_y; //difference between previous/future y and current y
 
-          for (int i = 0; i < 50 - path_size; i++)
+						pre_and_future_x[i] = shift_x * cos(0 - yaw_in_rad) - shift_y * sin(0 - yaw_in_rad);
+						pre_and_future_y[i] = shift_x * sin(0 - yaw_in_rad) + shift_y * cos(0 - yaw_in_rad);
+					}
 
-          {
-            //cout<<"I:"<<i;
+					// Create the spline.
+					tk::spline s;
+					s.set_points(pre_and_future_x, pre_and_future_y); // using 2 previous points and 3 furture points to initialize the spline
 
-            double delta_prev_s = pos_s - prev_s;
+					// Output path points from previous path for continuity.
+					for (int i = 0; i < path_size; i++) {
+						next_x_vals.push_back(previous_path_x[i]);
+						next_y_vals.push_back(previous_path_y[i]);
+					}
 
-            //cout << "\t delta_s: " << delta_prev_s;
-            prev_s = pos_s;
-            prev_d = pos_d;
+					// Calculate distance y position on 30 meters ahead.
+					double target_x = 30.0;
+					double target_y = s(target_x);
+					double target_dist = sqrt(target_x * target_x + target_y * target_y);
+					double x_add_on = 0;
+					
+					//cout << "50 - path_size " << 50 - path_size << endl;
+					for (int i = 1; i < 50 - path_size; i++) {
+						double N = target_dist / (0.02 * car_speed); // divided into N segments
 
-            target_s += min(delta_s, 0.01); // Parameters have been optimized to get smooth performance
-            prev_s_inc += delta_s;
+						double x_point = x_add_on + target_x / N;
+						double y_point = s(x_point); // To calculate distance y position .
 
-            //cout <<"Target s: "<< target_s<<endl;
+						x_add_on = x_point;
 
-            //We use difference b/w current s and prev_s to slowly increase the speed of the car
-            //at the beginning
-            pos_s += min(target_s, (delta_prev_s * (1.005) + 0.002));
-            pos_s = fmod(pos_s, max_s); // To reset s at the end of track
+						double x_ref = x_point;
+						double y_ref = y_point;
 
-            //Parameters for delta_d have been optimized to get smooth lane changes
-            if (delta_d >= 0.0) {
-              pos_d += min(delta_d, 0.02);
-            } else {
-              pos_d += max(delta_d, -0.02);
-            }
+						//x_point here is the increment of current x coordinate
+						x_point = x_ref * cos(yaw_in_rad) - y_ref * sin(yaw_in_rad);
+						y_point = x_ref * sin(yaw_in_rad) + y_ref * cos(yaw_in_rad);
 
-            prev_target_d += delta_d;
+						//increce current x by the increment calculated above
+						x_point += pos_x;
+						y_point += pos_y;
 
-            //cout << "\t S position: " << pos_s;
-            //cout<<"\t d position: " << car_d;
-
-            WP_x = path_spline_x(pos_s);
-            WP_y = path_spline_y(pos_s);
-            WP_dx = path_spline_dx(pos_s);
-            WP_dy = path_spline_dy(pos_s);
-
-            pos_x = WP_x + (pos_d) * WP_dx;
-            pos_y = WP_y + (pos_d) * WP_dy;
-
-            next_x_vals.push_back(pos_x);
-            next_y_vals.push_back(pos_y);
-
-          }
+						next_x_vals.push_back(x_point);
+						next_y_vals.push_back(y_point);
+					}
+					
+					cout << endl;
+					cout << endl;
 
           // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           msgJson["next_x"] = next_x_vals;
@@ -846,7 +852,7 @@ int main() {
   });
 
   int port = 4567;
-  if (h.listen(port)) {
+  if (h.listen("127.0.0.1", port)) {
     std::cout << "Listening to port " << port << std::endl;
   } else {
     std::cerr << "Failed to listen to port" << std::endl;
