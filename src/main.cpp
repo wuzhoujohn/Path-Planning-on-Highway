@@ -216,6 +216,7 @@ double cost_keep_lane(double dist_closest_front, double num_cars_mylane, double 
   }
 		else {
 			//car should stay in the middle lane, hence assign a slightly lower cost for staying in middle
+
 			if (current_lane == 1) {
 				cost = 50;
 			}
@@ -336,35 +337,7 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  // correct spline calculation at the end of track
-  map_waypoints_x.push_back(map_waypoints_x[0]);
-  map_waypoints_y.push_back(map_waypoints_y[0]);
-  map_waypoints_s.push_back(max_s + map_waypoints_s[0]);
-  map_waypoints_dx.push_back(map_waypoints_dx[0]);
-  map_waypoints_dy.push_back(map_waypoints_dy[0]);
-
-  map_waypoints_x.push_back(map_waypoints_x[1]);
-  map_waypoints_y.push_back(map_waypoints_y[1]);
-  map_waypoints_s.push_back(max_s + map_waypoints_s[1]);
-  map_waypoints_dx.push_back(map_waypoints_dx[1]);
-  map_waypoints_dy.push_back(map_waypoints_dy[1]);
-
-  //Decided to fit splines relative to the s coordinate
-  //Idea from slack channel 
-
-  tk::spline path_spline_x;
-  path_spline_x.set_points(map_waypoints_s, map_waypoints_x);
-
-  tk::spline path_spline_y;
-  path_spline_y.set_points(map_waypoints_s, map_waypoints_y);
-
-  tk::spline path_spline_dx;
-  path_spline_dx.set_points(map_waypoints_s, map_waypoints_dx);
-
-  tk::spline path_spline_dy;
-  path_spline_dy.set_points(map_waypoints_s, map_waypoints_dy);
-
-  h.onMessage([ & map_waypoints_x, & map_waypoints_y, & map_waypoints_s, & map_waypoints_dx, & map_waypoints_dy, & max_s, & path_spline_x, & path_spline_y, & path_spline_dx, & path_spline_dy](uWS::WebSocket < uWS::SERVER > ws, char * data, size_t length,
+  h.onMessage([ & map_waypoints_x, & map_waypoints_y, & map_waypoints_s, & map_waypoints_dx, & map_waypoints_dy, & max_s](uWS::WebSocket < uWS::SERVER > ws, char * data, size_t length,
     uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -408,13 +381,6 @@ int main() {
 
           // cout<<"Sensor Fusion data"<< sensor_fusion;
           vector < double > cars_mylane_s;
-			//vector < double > cars_myleft_s;
-			//vector < double > cars_myleft_d;
-			//vector < double > cars_myright_s;
-			//vector < double > cars_myright_d;
-			//vector < double > cars_mylane_vel;
-			//vector < double > cars_myleft_vel;
-			//vector < double > cars_myright_vel;
 
           double target_d;
 
@@ -429,8 +395,8 @@ int main() {
           double dist_closest_rightfront = 999;
           double dist_closest_rightback = 999;
 			double laternal_dist_closest_rightfront = 999;
-
           double closest_rightfront_vel = 0;
+
           double violate_left = 0;
           double violate_right = 0;
 
@@ -459,7 +425,7 @@ int main() {
 						//find minimal distance for cars in front, and get the speed for the vehicle(in m/s)
 						if (dist_closest_front > dist) {
 							dist_closest_front = dist;
-							closest_leftfront_vel = traffic_vel;
+							closest_front_vel = traffic_vel;
 						}
 					}
             }
@@ -475,6 +441,7 @@ int main() {
 						}
 						if (dist_closest_leftfront > dist) {
 							dist_closest_leftfront = dist;
+						closest_leftfront_vel = traffic_vel;
 						}
 					}
 					else {
@@ -482,7 +449,6 @@ int main() {
 						dist_closest_leftback = min(abs(dist), dist_closest_leftback);
 					}
             }
-
             //My Right lane
             else if (mylane(traffic_d) == mylane(car_d) + 1) {
 					//car is in front
@@ -493,6 +459,7 @@ int main() {
             }
 						if (dist_closest_rightfront > dist) {
 							dist_closest_rightfront = dist;
+						closest_rightfront_vel = traffic_vel;
           }
               }
 					else {
@@ -500,7 +467,6 @@ int main() {
 						dist_closest_rightback = min(abs(dist), dist_closest_rightback);
             }
           }
-
                 }
 
 			//cout << "dist_closest_front:" << dist_closest_front << endl;
@@ -516,7 +482,7 @@ int main() {
 
           //STEP 2: Calculate cost of actions and choose the one with minimum cost
           double buffer_my = 50;
-			double buffer_lc = 40;
+		double buffer_lc = 30;
 			double buffer_collision = 30;
           double cost_collision = 500;
 			double cost_left_turn = 200;
@@ -589,7 +555,7 @@ int main() {
 					// s = 0.30; vel = 35
 					const double MAX_SPEED = 50; //mph
 			 //The jerk threshold for comfort was approximately 0.3-0.9 m/s3
-			 const double MAX_ACC = 0.9; // maximum jerk considering passenger comfort
+			const double MAX_ACC = 0.224; // maximum jerk considering passenger comfort
 					//Note closest front vel is likely in m/s -- first convert to miles/hr
 					if ((decision == 0) or (decision == 999)) {
 						//Stay in current lane at max speed
@@ -598,11 +564,14 @@ int main() {
 					//if speed is lower than maximum speed, increase it by max jerk
 					car_speed += MAX_ACC;
 				}
-
 				// prevent cars in adjacent lanes hit our car through lane changing(car width roughly equals to 3 m)
-				if (laternal_dist_closest_leftfront < 3.5 || laternal_dist_closest_rightfront < 3.5) {
+				if (laternal_dist_closest_leftfront < 3.5) {
 					//slowing down
-					car_speed -= MAX_ACC;
+					//car_speed -= MAX_ACC;
+					car_speed = closest_leftfront_vel;
+				}
+				if (laternal_dist_closest_rightfront < 3.5) {
+					car_speed = closest_rightfront_vel;
 				}
 				
 						//determine which lane car should be on
@@ -622,7 +591,6 @@ int main() {
 				car_speed = car_speed - MAX_ACC;
 				//cout << "dist_closest_front: " << dist_closest_front << endl;
 				//cout << "closest_front_vel: " << closest_front_vel << endl;
-
 				if ((dist_closest_front < buffer_collision) || (car_speed > closest_front_vel)) {
 							car_speed = closest_front_vel;
 						}
@@ -650,7 +618,6 @@ int main() {
 
 					} else if (decision == 3) {
 						//Change to right lane
-
 						if (mylane(car_d) == 1) {
 							target_d = 6.0;
 						}
@@ -659,7 +626,6 @@ int main() {
 							target_d = 10.0;
 						}
 						else target_d = 6.0; //Car out of bound
-
 					} else {
 						cout << "Something is wrong";
 					}
@@ -682,7 +648,7 @@ int main() {
 					if (car_speed > MAX_SPEED / 2.24) {
 						car_speed = MAX_SPEED / 2.24;
 					}
-					cout << "car_speed " << car_speed << endl;
+			//cout << "car_speed " << car_speed << endl;
 
 					//As suggested in the lecture use previous path
 					if (path_size < 2) {
@@ -690,10 +656,10 @@ int main() {
 						double prev_pos_y = pos_y - sin(car_yaw);
 
 						pre_and_future_x.push_back(prev_pos_x);
-						pre_and_future_x.push_back(pos_x);
+				pre_and_future_x.push_back(car_x);
 
 						pre_and_future_y.push_back(prev_pos_y);
-						pre_and_future_y.push_back(pos_y);
+				pre_and_future_y.push_back(car_y);
 					}
 					else {
 						pos_x = previous_path_x[path_size - 1];
@@ -780,11 +746,9 @@ int main() {
 						next_x_vals.push_back(x_point);
 						next_y_vals.push_back(y_point);
 					}
-					
+			cout << "car_s " << car_s << endl;
 					cout << endl;
 					cout << endl;
-
-          // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
