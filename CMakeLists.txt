@@ -30,4 +30,4 @@ set(VCPKG_INSTALL ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET})
 
 add_executable(path_planning ${sources})
 
-target_link_libraries(path_planning C:\\highway-path-planning\\lib\\zlib.lib C:\\highway-path-planning\\lib\\libssl.lib C:\\highway-path-planning\\lib\\libuv.lib C:\\highway-path-planning\\lib\\uWS.lib C:\\highway-path-planning\\lib\\WS2_32.lib)
+target_link_libraries(path_planning C:\\Path-Planning-on-Highway\\lib\\zlib.lib C:\\Path-Planning-on-Highway\\lib\\libssl.lib C:\\Path-Planning-on-Highway\\lib\\libuv.lib C:\\Path-Planning-on-Highway\\lib\\uWS.lib C:\\Path-Planning-on-Highway\\lib\\WS2_32.lib)
