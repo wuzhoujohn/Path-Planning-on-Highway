@@ -247,7 +247,7 @@ double cost_change_left(double dist_closest_leftfront, double dist_closest_leftb
     cost = cost_collision;
   } else {
 	  //if its safe to turn left
-	  if ((dist_closest_leftfront >= buffer_lc) and (dist_closest_leftback >= buffer_lc)) // No car is close by on either front or back
+	  if ((dist_closest_leftfront >= buffer_lc) and (dist_closest_leftback >= 12)) // No car is close by on either front or back
     {
 		  if (dist_closest_leftfront >= 130) {
 			  //even safer to turn left
@@ -275,7 +275,7 @@ double cost_change_right(double dist_closest_rightfront, double dist_closest_rig
   {
     cost = cost_collision;
   } else {
-    if ((dist_closest_rightfront >= buffer_lc) and(dist_closest_rightback >= buffer_lc)) // No car is close by on either front or back
+    if ((dist_closest_rightfront >= buffer_lc) and (dist_closest_rightback >= 12)) // No car is close by on either front or back
     {
 		if (dist_closest_rightfront >= 130) {
 			//even safer to turn left
